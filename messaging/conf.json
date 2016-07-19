@@ -1,0 +1,21 @@
+{
+	"HTTPPort": 2016,
+	"smsEnabled": true,
+	"smsProvider": {
+		"name": "MockProvider",
+		"token": "12345"
+	},
+	"deliveryStatus": {
+		"enabled": true,
+		"updateInverval": 1
+	},
+	"BdbConnection": {
+		"Driver": "postgres",
+		"Host": "localhost",
+		"Port": 5432,
+		"Database": "messaging",
+		"User": "",
+		"Password": "",
+		"SSL": false
+	}
+}
