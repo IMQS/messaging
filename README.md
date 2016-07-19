@@ -1,8 +1,8 @@
-# messaging
+# Messaging
 
-The messaging service listens for incoming requests to send SMS and may possibly also include email 
+The messaging service listens for incoming requests to send SMS messages and may possibly also include email 
 messages in future. Integrating with various SMS providers are supported, and all message 
-activity is recorded in a Postgres database.   
+activity is recorded in a SQL database.   
 
 
 ## Features
@@ -33,8 +33,6 @@ Sends a message to the mobile numbers included in the form-data of the POST requ
   
 * **Data Params**
 
-   **Required:**
-
    `message=[string]` -> text message to send
 
    `msisdns=[string, csv]` -> list of mobile numbers in CSV format
@@ -43,28 +41,28 @@ Sends a message to the mobile numbers included in the form-data of the POST requ
 
   * **Code:** 200 <br />
     **Content:** 
-	```json
-	{ ValidCount: 5,
-	  InvalidCount: 2,
-	  SendSuccess: true,
-	  StatusDescription: "",
-	  MessageSentCount: 5 }
-	```
+```json
+{ "ValidCount": 5,
+  "InvalidCount": 2,
+  "SendSuccess": true,
+  "StatusDescription": "",
+  "MessageSentCount": 5 }
+```
  
 * **Error Response:**
 
   * **Code:** 200 <br />
     **Content:** 
-	```json
-	{ ValidCount: 5,
-	  InvalidCount: 2,
-	  SendSuccess: false,
-	  StatusDescription: "Error 301: out of credit",
-	  MessageSentCount: 0 }
-	```
+```json
+{ "ValidCount": 5,
+  "InvalidCount": 2,
+  "SendSuccess": false,
+  "StatusDescription": "Error 301: Out of credit",
+  "MessageSentCount": 0 }
+```
 
 ### **messageStatus**
-Retrieves the delivery status for the last delivered message for a specific mobile number.
+Retrieves the delivery status of the last delivered message for a specific mobile number.
 
 * **URL**
 
@@ -105,9 +103,13 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 
   * **Code:** 200 <br />
     **Content:** 
-	```json
-	[27830000000,27840000000,...]
-	```
+```json
+[ 
+  "27830000000",
+  "27840000000",
+  "27820000000"
+]
+```
  
 * **Error Response:**
 
@@ -117,7 +119,7 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 
 ## Configuration
 
-```json
+```
 {
 	"HTTPPort": 2016,  			    // Port to bind to for the HTTP server
 	"smsEnabled": true,			    // Enable or disable sending of SMS for testing
