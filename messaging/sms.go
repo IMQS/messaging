@@ -6,11 +6,12 @@ import (
 )
 
 type smsProvider struct {
-	Name    string
-	Token   string
-	Custom1 string
-	Custom2 string
-	Custom3 string
+	Name         string
+	Token        string
+	MaxBatchSize int
+	Custom1      string
+	Custom2      string
+	Custom3      string
 }
 
 type Message struct {
@@ -48,7 +49,7 @@ func SendSMS(msg, eml string, ns []string) error {
 		return errors.New("SendSMS disabled in config, not sending")
 	}
 
-	err := splitBatchAndSend(msg, eml, ns) // Split message into batches if recipients more than 600 (Clickatell limit)
+	err := splitBatchAndSend(msg, eml, ns) // Split message into batches if required by provider
 
 	return err
 }
@@ -100,9 +101,10 @@ func UpdateStatus(i int) {
 
 func splitBatchAndSend(msg, eml string, ns []string) error {
 	var err error
-	if len(ns) > 600 {
-		err = sendSMSBatch(msg, eml, ns[:600])
-		splitBatchAndSend(msg, eml, ns[600:])
+	bs := Config.SMSProvider.MaxBatchSize
+	if bs > 0 && len(ns) > bs {
+		err = sendSMSBatch(msg, eml, ns[:bs])
+		splitBatchAndSend(msg, eml, ns[bs:])
 	} else {
 		err = sendSMSBatch(msg, eml, ns)
 	}
@@ -115,8 +117,8 @@ func sendSMSBatch(msg, eml string, ns []string) error {
 		Destination: ns,
 		Text:        msg,
 		//ClientMsgId: "0",
-		From:        "IMQS",
-		Provider:    Config.SMSProvider,
+		From:     "IMQS",
+		Provider: Config.SMSProvider,
 	}
 	resp := callMethod(m, Config.SMSProvider.Name+"SendSMS").(SMSResponse)
 

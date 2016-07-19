@@ -3,13 +3,14 @@
 	"smsEnabled": true,
 	"smsProvider": {
 		"name": "MockProvider",
-		"token": "12345"
+		"token": "12345",
+		"maxBatchSize": 10
 	},
 	"deliveryStatus": {
 		"enabled": true,
-		"updateInverval": 1
+		"updateInverval": 10
 	},
-	"BdbConnection": {
+	"dbConnection": {
 		"Driver": "postgres",
 		"Host": "localhost",
 		"Port": 5432,

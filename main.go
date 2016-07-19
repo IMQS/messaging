@@ -16,7 +16,7 @@ type configuration struct {
 }
 
 // main starts a new http server and listens requests on a number of routes.
-// It calls the alert package to handle these requests.
+// It calls the messaging package to handle these requests.
 func main() {
 	// Read config file
 	conf := configuration{}
@@ -35,7 +35,7 @@ func main() {
 	file.Close()
 
 	// Perform initial configuration
-	err = alert.Bootstrap()
+	err = messaging.Bootstrap()
 	if err != nil {
 		log.Println(err)
 		return

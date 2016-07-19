@@ -63,25 +63,20 @@ func HandleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	cns := NormalizeMSISDNs(response[0])
 	err = SendSMS(msg, eml, cns)
 
-	sendResponse := sendSMSResponse{}
-	if err == nil {
-		sendResponse = sendSMSResponse{
-			ValidCount:        len(cns),
-			InvalidCount:      len(response[0]) - len(cns),
-			SendSuccess:       true,
-			StatusDescription: "",
-			MessageSentCount:  len(cns), // Assuming sending only one message per MSISDN
-		}
-	} else {
-		sendResponse = sendSMSResponse{
-			ValidCount:        len(cns),
-			InvalidCount:      len(response[0]) - len(cns),
-			SendSuccess:       false,
-			StatusDescription: err.Error(),
-			MessageSentCount:  0,
-		}
+	sendR := sendSMSResponse{
+		ValidCount:        len(cns),
+		InvalidCount:      len(response[0]) - len(cns),
+		SendSuccess:       false,
+		StatusDescription: "",
+		MessageSentCount:  0,
 	}
-	js, err := json.Marshal(sendResponse)
+	if err == nil {
+		sendR.SendSuccess = true
+		sendR.MessageSentCount = len(cns) // Assuming sending only one message per MSISDN
+	} else {
+		sendR.StatusDescription = err.Error()
+	}
+	js, err := json.Marshal(sendR)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -172,7 +167,7 @@ func Bootstrap() error {
 ///////////////////////////////////////////////////////////////////////////////
 
 // Check in the cookie whether the user that has requested the action
-// has permission to do so, by calling the auth package.
+// has permission to do so, by calling the serviceauth package.
 func userHasPermission(r *http.Request) bool {
 	// REMOVE THIS CODE ONCE TESTING IS COMPLETE:
 	return true

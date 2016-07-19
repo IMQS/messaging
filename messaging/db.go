@@ -16,7 +16,7 @@ type sqlNotifyDB struct {
 }
 
 // DBConnection struct holds the DB configuration and can be used
-// throughtout the alert package.
+// throughtout the messaging package.
 type DBConnection struct {
 	Driver   string
 	Host     string
