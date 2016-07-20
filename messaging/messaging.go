@@ -38,7 +38,8 @@ var (
 
 // HandleSendSMS should called with form-data specifying a message, and a comma-separated list of msisdns
 func HandleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if userHasPermission(r) != true {
+	userAuth, identity := userHasPermission(r)
+	if userAuth != true {
 		http.Error(w, "User unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -48,9 +49,6 @@ func HandleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	msg := r.FormValue("message")
 	ns := r.FormValue("msisdns")
 
-	// GET USER FROM COOKIE?
-	eml := "test@imqs.co.za"
-
 	reader := csv.NewReader(strings.NewReader(ns))
 	response, err := reader.ReadAll()
 	if err != nil {
@@ -58,10 +56,10 @@ func HandleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
-	log.Printf("Request received from %v: send '%v' to %v recipients.", eml, msg, len(response[0]))
+	log.Printf("Request received from %v: send '%v' to %v recipients.", identity, msg, len(response[0]))
 
 	cns := NormalizeMSISDNs(response[0])
-	err = SendSMS(msg, eml, cns)
+	err = SendSMS(msg, identity, cns)
 
 	sendR := sendSMSResponse{
 		ValidCount:        len(cns),
@@ -88,7 +86,8 @@ func HandleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 // HandleMessageStatus retrieves the delivery status for the last message delivered
 // to a mobile number.
 func HandleMessageStatus(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if userHasPermission(r) != true {
+	userAuth, _ := userHasPermission(r)
+	if userAuth != true {
 		http.Error(w, "User unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -107,7 +106,8 @@ func HandleMessageStatus(w http.ResponseWriter, r *http.Request, ps httprouter.P
 // then run through a series of operations to validate, clean up and remove
 // duplicates.  It returns a JSON list of valid numbers.
 func HandleNormalize(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if userHasPermission(r) != true {
+	userAuth, _ := userHasPermission(r)
+	if userAuth != true {
 		http.Error(w, "User unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -168,16 +168,13 @@ func Bootstrap() error {
 
 // Check in the cookie whether the user that has requested the action
 // has permission to do so, by calling the serviceauth package.
-func userHasPermission(r *http.Request) bool {
-	// REMOVE THIS CODE ONCE TESTING IS COMPLETE:
-	return true
-
-	httpCode, _, d := serviceauth.VerifyUserHasPermission(r, "bulksms")
-	fmt.Println("UserPermission response =", d)
+func userHasPermission(r *http.Request) (bool, string) {
+	httpCode, _, authResponse := serviceauth.VerifyUserHasPermission(r, "bulksms")
 	if httpCode == http.StatusOK {
-		return true
+		identity := authResponse.Identity
+		return true, identity
 	}
 
-	log.Printf("SendSMS attempt: User unauthorized, %v", d)
-	return false
+	log.Printf("User unauthorized: %v", httpCode)
+	return false, ""
 }
