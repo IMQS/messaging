@@ -2,12 +2,16 @@ package messaging
 
 import "strings"
 
-// NormalizeMSISDNs receives a list of MSISDNs and runs a series
-// of checks to ensure that they are valid South African mobile numbers.
-// Invalid and duplicate numbers are ignored and removed from the reply.
-// Future enhancements could support multiple countries and also
-// consider certain network codes (e.g. 2783 -> MTN) for validation.
-func NormalizeMSISDNs(ns []string) []string {
+/* cleanMSISDNs receives a list of MSISDNs and runs a series
+   of checks to ensure that they are valid South African mobile numbers.
+   Invalid and duplicate numbers are ignored and removed from the reply.
+   Future enhancements could support multiple countries and also
+   consider certain network codes (e.g. 2783 -> MTN) for validation. */
+
+// https://github.com/alesr/msisdn-decoder/blob/master/msisdn/msisdn.go
+// https://github.com/likozar1/msisdn/blob/master/msisdn.go
+
+func cleanMSISDNs(ns []string) []string {
 	for i := len(ns) - 1; i >= 0; i-- {
 		n := ns[i]
 		// only allow numbers

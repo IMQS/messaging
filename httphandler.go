@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -19,6 +20,8 @@ type sendSMSResponse struct {
 	StatusDescription string `json:"statusDescription"`
 	MessageSentCount  int    `json:"messagesSent"`
 }
+
+const smsCharLength = 160
 
 // StartServer is called to read the config file and initiate
 // the HTTP server.
@@ -56,9 +59,16 @@ func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
+	// Check if message fits into one message (segements * sms length)
+	if utf8.RuneCountInString(msg) > Config.SMSProvider.MaxMessageSegments*smsCharLength {
+		lErr := fmt.Sprintf("Message exceeds max allowed length (%v characters)", Config.SMSProvider.MaxMessageSegments*smsCharLength)
+		http.Error(w, lErr, http.StatusNotAcceptable)
+		return
+	}
+
 	log.Printf("Request received from %v: send '%v' to %v recipients.", identity, msg, len(response[0]))
 
-	cns := NormalizeMSISDNs(response[0])
+	cns := cleanMSISDNs(response[0])
 	sendID, err := SendSMS(msg, identity, cns)
 
 	sendR := sendSMSResponse{
@@ -115,7 +125,7 @@ func handleNormalize(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	reader := csv.NewReader(strings.NewReader(msisdns))
 	records, _ := reader.ReadAll()
 
-	cleanMSISDNs := NormalizeMSISDNs(records[0])
+	cleanMSISDNs := cleanMSISDNs(records[0])
 	js, err := json.Marshal(cleanMSISDNs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

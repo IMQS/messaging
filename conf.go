@@ -22,13 +22,14 @@ type configuration struct {
 }
 
 type smsProvider struct {
-	Name         string
-	Enabled      bool
-	Token        string
-	MaxBatchSize int
-	Custom1      string
-	Custom2      string
-	Custom3      string
+	Name               string
+	Enabled            bool
+	Token              string
+	MaxMessageSegments int
+	MaxBatchSize       int
+	Custom1            string
+	Custom2            string
+	Custom3            string
 }
 
 type authConfig struct {
