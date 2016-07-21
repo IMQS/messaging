@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-// DeliveryInterval allows for configuration of the DeliveryStatus interval
-type DeliveryInterval struct {
-	Enabled        bool
-	UpdateInverval int
-}
-
 func startInterval() {
 	if Config.DeliveryStatus.Enabled {
 		log.Printf("Starting interval timer to run every %v minutes", Config.DeliveryStatus.UpdateInverval)

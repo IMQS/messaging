@@ -9,7 +9,7 @@ import (
 
 // MockProviderSendSMS simulates a SMS provider for testing purposes
 // The messages always succeed with this provider.
-func (m Message) MockProviderSendSMS() SMSResponse {
+func (m message) MockProviderSendSMS() SMSResponse {
 	log.Println("Simulating sending message with MockProviderSendSMS")
 	var msRess []SendSMSResponseMessage
 	seed := rand.NewSource(time.Now().UnixNano())
@@ -32,23 +32,27 @@ func (m Message) MockProviderSendSMS() SMSResponse {
 }
 
 // MockProviderGetStatus simulates a SMS provider for testing purposes
-func (m Message) MockProviderGetStatus() SMSResponse {
+func (m message) MockProviderGetStatus() SMSResponse {
 	log.Println("Simulating getting status with MockProviderGetStatus")
 
-	// Randomly succeed or fail messages
+	// Randomly succeed, fail or delay messages
 	var errC string
 	seed := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(seed)
-	if random.Intn(10) >= 3 {
-		errC = "004"
-	} else {
-		errC = "007"
+	rReturn := random.Intn(10)
+	switch {
+	case rReturn < 1:
+		errC = "405" // Mock failed
+	case rReturn >= 2 && rReturn <= 8:
+		errC = "101" // Mock success
+	default:
+		errC = "056" // Mock sent (in progress)
 	}
 	var msRess []SendSMSResponseMessage
 	msRess = append(msRess, SendSMSResponseMessage{
-		MessageID: m.APIMsgID,
-		ErrorCode: errC,
-		ErrorDesc: "Received",
+		MessageID: m.ProviderID,
+		ErrorCode: mockProviderMapCode(errC),
+		ErrorDesc: mockProviderMapCode(errC),
 		Quantity:  1,
 	})
 
@@ -58,4 +62,15 @@ func (m Message) MockProviderGetStatus() SMSResponse {
 	}
 
 	return sr
+}
+
+func mockProviderMapCode(c string) string {
+	switch {
+	case c == "101":
+		return "delivered"
+	case c == "405":
+		return "failed"
+	default:
+		return "sent"
+	}
 }

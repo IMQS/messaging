@@ -13,8 +13,6 @@ func callMethod(i interface{}, methodName string) interface{} {
 
 	value = reflect.ValueOf(i)
 
-	// if we start with a pointer, we need to get value pointed to
-	// if we start with a value, we need to get a pointer to that value
 	if value.Type().Kind() == reflect.Ptr {
 		ptr = value
 		value = ptr.Elem()

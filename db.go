@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/migration"
@@ -15,42 +16,9 @@ type sqlNotifyDB struct {
 	db *sql.DB
 }
 
-// DBConnection struct holds the DB configuration and can be used
-// throughtout the messaging package.
-type DBConnection struct {
-	Driver   string
-	Host     string
-	Port     uint16
-	Database string
-	User     string
-	Password string
-	SSL      bool
-}
-
-// Connect to the DB as defined in the DBConnection configuration.
-func (x *DBConnection) open() (*sql.DB, error) {
-	return sql.Open(x.Driver, x.connectionString(true))
-}
-
-// CreateDB takes care of creating a new DB for the Notify component
-// if the DB does not yet exist.
-func (x *DBConnection) createDB() error {
-	log.Printf("Database does not exist, creating")
-	db, err := sql.Open(x.Driver, x.connectionString(false))
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	_, err = db.Exec("CREATE DATABASE " + x.Database)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // CreateSMSData handles the DB entries for batch as well as individual
 // messages after sending.
-func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) error {
+func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) (string, error) {
 	msgs := resp.Data
 	var st, stDesc string
 	if resp.Error != nil {
@@ -63,24 +31,23 @@ func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) error {
 	var id int
 	// Create entry in the batchlog table and retrieve the new row ID.
 	err := x.db.QueryRow(`INSERT INTO sendlog 
-		(sent, originator, messagetype, quantity, success, failed, message, status, description) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-		time.Now(), eml, "sms", len(msgs), 0, 0, msg, st, stDesc).Scan(&id)
+		(senttime, originator, type, quantity, delivered, failed, sent, message, status, description) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+		time.Now(), eml, "sms", len(msgs), 0, 0, 0, msg, st, stDesc).Scan(&id)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// Add a new entry in the sendtransaction table for each of the SMS messages.
 	for i := 0; i < len(msgs); i++ {
 		_, err := x.db.Exec(`INSERT INTO sms
-			(msisdn, sent, quantity, sendlogid, status, message, providerid)
+			(msisdn, senttime, quantity, sendlogid, status, message, providerid)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			msgs[i].To, time.Now(), 1, id, msgs[i].ErrorCode, msg, msgs[i].MessageID)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-
-	return nil
+	return strconv.Itoa(id), nil
 }
 
 // UpdateSMSData updates the SMS transaction with the retrieved status and timestamp.
@@ -90,11 +57,14 @@ func (x *sqlNotifyDB) updateSMSData(mID, stC, stD, sLogID string) error {
 	if err != nil {
 		return err
 	}
-	if stC == "004" { // Success
-		_, err := x.db.Exec(`UPDATE sendlog SET success = success + 1 WHERE id = $1`, sLogID)
+	if stC == "delivered" { // Success
+		_, err := x.db.Exec(`UPDATE sendlog SET delivered = delivered + 1 WHERE id = $1`, sLogID)
+		return err
+	} else if stC == "failed" {
+		_, err := x.db.Exec(`UPDATE sendlog SET failed = failed + 1 WHERE id = $1`, sLogID)
 		return err
 	}
-	_, err = x.db.Exec(`UPDATE sendlog SET failed = failed + 1 WHERE id = $1`, sLogID)
+	_, err = x.db.Exec(`UPDATE sendlog SET sent = sent + 1 WHERE id = $1`, sLogID)
 	return err
 
 }
@@ -103,7 +73,7 @@ func (x *sqlNotifyDB) updateSMSData(mID, stC, stD, sLogID string) error {
 // mobile number and returns the messageID.
 func (x *sqlNotifyDB) getLastSMSID(m string) (string, string, string, error) {
 	var mID, sendLogID, status string
-	err := x.db.QueryRow(`SELECT providerid, sendlogid, status FROM sms WHERE msisdn = $1 ORDER BY sent DESC LIMIT 1`, m).Scan(&mID, &sendLogID, &status)
+	err := x.db.QueryRow(`SELECT providerid, sendlogid, status FROM sms WHERE msisdn = $1 ORDER BY senttime DESC LIMIT 1`, m).Scan(&mID, &sendLogID, &status)
 	if err != nil {
 		return "", "", "", errors.New("GetLastSMSID: Could not find messageID")
 	}
@@ -115,7 +85,7 @@ func (x *sqlNotifyDB) getLastSMSID(m string) (string, string, string, error) {
 // as specified in the i variable (in minutes).
 func (x *sqlNotifyDB) getUnresolvedIDs(i int) ([][]string, error) {
 	var aIDs [][]string
-	rows, err := x.db.Query(`SELECT providerid, sendlogid FROM sms WHERE statustimestamp IS NULL AND sent >= $1`,
+	rows, err := x.db.Query(`SELECT providerid, sendlogid FROM sms WHERE statustimestamp IS NULL AND senttime >= $1`,
 		time.Now().Add(-time.Duration(i)*time.Minute))
 	if err != nil {
 		return aIDs, errors.New("GetUnresolvedIDs: Could not retrieve messages")
@@ -144,8 +114,31 @@ func (x *sqlNotifyDB) close() {
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
+// Connect to the DB as defined in the dbConnection configuration.
+func (x *dbConnection) open() (*sql.DB, error) {
+	return sql.Open(x.Driver, x.connectionString(true))
+}
+
+// CreateDB takes care of creating a new DB for the Notify component
+// if the DB does not yet exist.
+func (x *dbConnection) createDB() error {
+	log.Printf("Database does not exist, creating")
+	db, err := sql.Open(x.Driver, x.connectionString(false))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.Exec("CREATE DATABASE " + x.Database)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // RunMigrations executes the migration process.
-func runMigrations(x *DBConnection) error {
+func runMigrations(x *dbConnection) error {
 	db, err := migration.Open(x.Driver, x.connectionString(true), createMigrations())
 	if err == nil {
 		db.Close()
@@ -159,12 +152,13 @@ func createMigrations() []migration.Migrator {
 	text := []string{
 		`CREATE TABLE sendlog (
 			id SERIAL PRIMARY KEY,
-			sent TIMESTAMP,
+			senttime TIMESTAMP,
 			originator VARCHAR,
-			messagetype VARCHAR,
+			type VARCHAR,
 			quantity INTEGER,
-			success INTEGER,
+			delivered INTEGER,
 			failed INTEGER,
+			sent INTEGER,
 			message VARCHAR,
 			status VARCHAR,
 			description VARCHAR
@@ -173,7 +167,7 @@ func createMigrations() []migration.Migrator {
 		`CREATE TABLE sms (
 			id SERIAL PRIMARY KEY, 
 			msisdn VARCHAR, 
-			sent TIMESTAMP, 
+			senttime TIMESTAMP, 
 			quantity SMALLINT, 
 			sendlogid INTEGER REFERENCES sendlog (id),
 			status VARCHAR,
@@ -193,7 +187,7 @@ func createMigrations() []migration.Migrator {
 	return migrations
 }
 
-func (x *DBConnection) connectionString(addDB bool) string {
+func (x *dbConnection) connectionString(addDB bool) string {
 	sslmode := "disable"
 	if x.SSL {
 		sslmode = "require"

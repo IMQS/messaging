@@ -5,21 +5,12 @@ import (
 	"log"
 )
 
-type smsProvider struct {
-	Name         string
-	Token        string
-	MaxBatchSize int
-	Custom1      string
-	Custom2      string
-	Custom3      string
-}
-
-type Message struct {
-	ClientMsgId string      // The internal ID from the database
-	APIMsgID    string      // The ID assigned by the SMS provider in the send response
-	Destination []string    // List of mobile numbers to send to
-	Text        string      // The message to send
-	From        string      // Optional, provide a description of the sender
+type message struct {
+	ID          string      // The internal ID from the database
+	ProviderID  string      // The ID assigned by the SMS provider in the send response
+	Destination []string    // List of string mobile numbers to send to
+	Text        string      // The text message to send
+	From        string      // Optional, provide a description for the sender
 	Provider    smsProvider // SMS Provider to send the messages through
 }
 
@@ -42,16 +33,16 @@ type SendSMSResponseMessage struct {
 
 // SendSMS implements REST APIs for SMS providers, as configured in the config.
 // It also stores all messages in a DB for later reference
-func SendSMS(msg, eml string, ns []string) error {
+func SendSMS(msg, eml string, ns []string) (string, error) {
 	log.Printf("User %v sending message '%v' to %v recipients.", eml, msg, len(ns))
 
-	if !Config.SMSEnabled {
-		return errors.New("SendSMS disabled in config, not sending")
+	if !Config.SMSProvider.Enabled {
+		return "", errors.New("SendSMS disabled in config, not sending")
 	}
 
-	err := splitBatchAndSend(msg, eml, ns) // Split message into batches if required by provider
+	sendID, err := splitBatchAndSend(msg, eml, ns) // Split message into batches if required by provider
 
-	return err
+	return sendID, err
 }
 
 // GetNumberStatus retrieves the delivery status of the last-sent message to a specific MSISDN
@@ -61,7 +52,7 @@ func GetNumberStatus(n string) (string, error) {
 		return "", err
 	}
 
-	if st != "0" {
+	if st != "0" && st != "sent" {
 		return st, nil
 	}
 
@@ -70,7 +61,7 @@ func GetNumberStatus(n string) (string, error) {
 }
 
 func getStatus(apiID, sendLogID string) (string, error) {
-	resp := callMethod(Message{APIMsgID: apiID}, Config.SMSProvider.Name+"GetStatus").(SMSResponse)
+	resp := callMethod(message{ProviderID: apiID}, Config.SMSProvider.Name+"GetStatus").(SMSResponse)
 	if resp.Error != nil {
 		return "", resp.Error
 	}
@@ -99,21 +90,22 @@ func UpdateStatus(i int) {
 
 }
 
-func splitBatchAndSend(msg, eml string, ns []string) error {
+func splitBatchAndSend(msg, eml string, ns []string) (string, error) {
 	var err error
+	var sendID string
 	bs := Config.SMSProvider.MaxBatchSize
 	if bs > 0 && len(ns) > bs {
-		err = sendSMSBatch(msg, eml, ns[:bs])
+		sendID, err = sendSMSBatch(msg, eml, ns[:bs])
 		splitBatchAndSend(msg, eml, ns[bs:])
 	} else {
-		err = sendSMSBatch(msg, eml, ns)
+		sendID, err = sendSMSBatch(msg, eml, ns)
 	}
-	return err
+	return sendID, err
 }
 
-func sendSMSBatch(msg, eml string, ns []string) error {
+func sendSMSBatch(msg, eml string, ns []string) (string, error) {
 
-	m := Message{
+	m := message{
 		Destination: ns,
 		Text:        msg,
 		//ClientMsgId: "0",
@@ -122,13 +114,10 @@ func sendSMSBatch(msg, eml string, ns []string) error {
 	}
 	resp := callMethod(m, Config.SMSProvider.Name+"SendSMS").(SMSResponse)
 
-	// Run the DB entry code in a go function to prevent delays in responding
-	// to the front-end while performing large insert DB operations.
-	go func() {
-		if err := DB.createSMSData(msg, eml, &resp); err != nil {
-			errors.New("SendSMS DB error")
-		}
-	}()
+	sendID, err := DB.createSMSData(msg, eml, &resp)
+	if err != nil {
+		return "", errors.New("SendSMS DB error")
+	}
 
-	return resp.Error
+	return sendID, resp.Error
 }

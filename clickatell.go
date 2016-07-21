@@ -9,14 +9,14 @@ import (
 
 // ClickatellSendSMS implements the SendSMS method and converts
 // Clickatell specific formats to the generic SMS structures.
-func (m Message) ClickatellSendSMS() SMSResponse {
+func (m message) ClickatellSendSMS() SMSResponse {
 	log.Println("Sending message with Clickatell")
 
 	rest := clickatell.Rest(m.Provider.Token, nil)
 	cm := clickatell.Message{
 		Destination: m.Destination,
 		Body:        m.Text,
-		ClientMsgId: m.ClientMsgId,
+		ClientMsgId: m.ProviderID,
 		From:        m.From,
 	}
 	resp, err := rest.Send(cm)
@@ -44,11 +44,11 @@ func (m Message) ClickatellSendSMS() SMSResponse {
 
 // ClickatellGetStatus retrieves the delivery status of a mobile number
 // using the Clickatell service.
-func (m Message) ClickatellGetStatus() SMSResponse {
+func (m message) ClickatellGetStatus() SMSResponse {
 	log.Println("Getting status with ClickatellGetStatus")
 
 	rest := clickatell.Rest(Config.SMSProvider.Token, nil)
-	st, err := rest.GetStatus(m.APIMsgID)
+	st, err := rest.GetStatus(m.ProviderID)
 	if err != nil {
 		return SMSResponse{Error: errors.New("ClickatellGetStatus: Could not retrieve status")}
 	}
@@ -56,7 +56,7 @@ func (m Message) ClickatellGetStatus() SMSResponse {
 	var msRess []SendSMSResponseMessage
 	msRess = append(msRess, SendSMSResponseMessage{
 		MessageID: st.Data.APIMessageID,
-		ErrorCode: st.Data.StatusCode,
+		ErrorCode: clickatellMapCode(st.Data.StatusCode),
 		ErrorDesc: st.Data.Description,
 		Quantity:  st.Data.Charge,
 	})
@@ -70,6 +70,16 @@ func (m Message) ClickatellGetStatus() SMSResponse {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+func clickatellMapCode(c string) string {
+	switch {
+	case c == "004":
+		return "delivered"
+	case c == "007":
+		return "failed"
+	}
+	return "sent" // no final status available
+}
 
 // We're not getting a proper error response from Clickatell.  Attempt to get
 // the correct error by looking at the error in the first message.

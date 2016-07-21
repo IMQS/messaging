@@ -42,11 +42,12 @@ Sends a message to the mobile numbers included in the form-data of the POST requ
   * **Code:** 200 <br />
     **Content:** 
 ```json
-{ "ValidCount": 5,
-  "InvalidCount": 2,
-  "SendSuccess": true,
-  "StatusDescription": "",
-  "MessageSentCount": 5 }
+{ "refNumber": "412",
+  "validNumbers": 5,
+  "invalidNumbers": 2,
+  "sendSuccess": true,
+  "statusDescription": "",
+  "messagesSent": 5 }
 ```
  
 * **Error Response:**
@@ -54,11 +55,12 @@ Sends a message to the mobile numbers included in the form-data of the POST requ
   * **Code:** 200 <br />
     **Content:** 
 ```json
-{ "ValidCount": 5,
-  "InvalidCount": 2,
-  "SendSuccess": false,
-  "StatusDescription": "Error 301: Out of credit",
-  "MessageSentCount": 0 }
+{ "refNumber": "412",
+  "validNumbers": 5,
+  "invalidNumbers": 2,
+  "sendSuccess": false,
+  "statusDescription": "Error 301: Out of credit",
+  "messagesSent": 0 }
 ```
 
 ### **messageStatus**
@@ -122,14 +124,18 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 ```
 {
 	"HTTPPort": 2016,  			    // Port to bind to for the HTTP server
-	"smsEnabled": true,			    // Enable or disable sending of SMS for testing
 	"smsProvider": {
 		"name": "MockProvider",		// Name of provider.  Will be used to determine function to call
+		"enabled": true,			    // Enable or disable sending of SMS for testing
 		"token": "12345",			// Auth token to use for sending
-		"maxBatchSize": 10,  		// Max number of messages to send per batch 
+		"maxBatchSize": 500,  		// Max number of messages to send per batch 
 		"custom1": "custom data",	// Custom field for SMS provider API implementation
 		"custom2": "custom data",	// Custom field for SMS provider API implementation
 		"custom3": "custom data"	// Custom field for SMS provider API implementation
+	},
+	"authentication": {
+		"service": "serviceauth",	// Authentication system to use. Implement new service in auth.go 
+		"enabled": false			// Enable or disable user authentication
 	},
 	"deliveryStatus": {
 		"enabled": true,			// Enable or disable delivery status retrieval
