@@ -1,0 +1,28 @@
+{
+	"HTTPPort": 2016,
+	"smsProvider": {
+		"name": "MockProvider",
+		"enabled": true,
+		"token": "12345",
+		"maxMessageSegments": 1,
+		"maxBatchSize": 5000,
+		"countries": ["USA","ZW","IT","RO","CH","AT","GB","DK","SE","NO","PL","DE","PE","MX","CU","AR","ZA", "ZW"]
+	},
+	"authentication": {
+		"service": "serviceauth",
+		"enabled": false
+	},
+	"deliveryStatus": {
+		"enabled": true,
+		"updateInverval": 5
+	},
+	"dbConnection": {
+		"Driver": "postgres",
+		"Host": "localhost",
+		"Port": 5432,
+		"Database": "messaging",
+		"User": "postgres",
+		"Password": "1mq5p@55w0rd",
+		"SSL": false
+	}
+}
