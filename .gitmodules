@@ -16,3 +16,6 @@
 [submodule "src/github.com/IMQS/gowinsvc"]
 	path = src/github.com/IMQS/gowinsvc
 	url = git@github.com:IMQS/gowinsvc.git
+[submodule "src/github.com/ttacon/libphonenumber"]
+	path = src/github.com/ttacon/libphonenumber
+	url = git@github.com:ttacon/libphonenumber.git
