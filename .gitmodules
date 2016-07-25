@@ -1,0 +1,18 @@
+[submodule "src/github.com/IMQS/cli"]
+	path = src/github.com/IMQS/cli
+	url = git@github.com:IMQS/cli.git
+[submodule "src/github.com/IMQS/serviceauth"]
+	path = src/github.com/IMQS/serviceauth
+	url = git@github.com:IMQS/serviceauth.git
+[submodule "src/github.com/BurntSushi/migration"]
+	path = src/github.com/BurntSushi/migration
+	url = git@github.com:BurntSushi/migration.git
+[submodule "src/github.com/lib/pq"]
+	path = src/github.com/lib/pq
+	url = git@github.com:lib/pq.git
+[submodule "src/github.com/julienschmidt/httprouter"]
+	path = src/github.com/julienschmidt/httprouter
+	url = git@github.com:julienschmidt/httprouter.git
+[submodule "src/github.com/IMQS/gowinsvc"]
+	path = src/github.com/IMQS/gowinsvc
+	url = git@github.com:IMQS/gowinsvc.git
