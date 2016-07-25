@@ -6,6 +6,41 @@ import (
 	"os"
 )
 
+/*
+
+Sample config:
+
+{
+	"HTTPPort": 2012,
+	"smsProvider": {
+		"name": "Clickatell",
+		"enabled": true,
+		"token": "123abc",
+		"maxMessageSegments": 1,
+		"maxBatchSize": 600,
+		"countries": ["ZA", "BW", "US"]
+	},
+	"authentication": {
+		"service": "serviceauth",
+		"enabled": true
+	},
+	"deliveryStatus": {
+		"enabled": true,
+		"updateInverval": 15
+	},
+	"dbConnection": {
+		"Driver": "postgres",
+		"Host": "localhost",
+		"Port": 5432,
+		"Database": "messaging",
+		"User": "jim",
+		"Password": "123",
+		"SSL": false
+	}
+}
+
+*/
+
 // Variables used throughout the messaging package
 var (
 	Config = configuration{}

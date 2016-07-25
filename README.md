@@ -84,11 +84,11 @@ Retrieves the delivery status of the last delivered message for a specific mobil
   * **Code:** 200 <br />
     **Content:** `Error: no data available`
 
-* **Status Description:**
+* **Status Descriptions:**
 
 	* **delivered:** Message has successfully been delivered to the mobile phone <br />
-	  **failed:** Message could not be delivered to the mobile phone <br />
-	  **sent:** Message has been sent but has not the handset yet.  It could still fail or be delivered.
+	* **failed:** Message could not be delivered to the mobile phone <br />
+	* **sent:** Message has been sent but has not the handset yet.  It could still fail or be delivered.
 
 
 ### **Normalize**
