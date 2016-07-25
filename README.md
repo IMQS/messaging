@@ -133,7 +133,7 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 	"HTTPPort": 2016,  			    // Port to bind to for the HTTP server
 	"smsProvider": {
 		"name": "MockProvider",		// Name of provider.  Will be used to determine function to call
-		"enabled": true,			    // Enable or disable sending of SMS for testing
+		"enabled": true,			// Enable or disable sending of SMS for testing
 		"token": "12345",			// Auth token to use for sending
 		"maxMessageSegments": 1,	// Max message segments to send. Each segment is 160 characters
 		"maxBatchSize": 500,  		// Max number of messages to send per batch 
