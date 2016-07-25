@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"errors"
-	"log"
 
 	"github.com/IMQS/messaging/clickatell"
 )
@@ -10,8 +9,6 @@ import (
 // ClickatellSendSMS implements the SendSMS method and converts
 // Clickatell specific formats to the generic SMS structures.
 func (m message) ClickatellSendSMS() SMSResponse {
-	log.Println("Sending message with Clickatell")
-
 	rest := clickatell.Rest(m.Provider.Token, nil)
 	cm := clickatell.Message{
 		Destination: m.Destination,
@@ -45,8 +42,6 @@ func (m message) ClickatellSendSMS() SMSResponse {
 // ClickatellGetStatus retrieves the delivery status of a mobile number
 // using the Clickatell service.
 func (m message) ClickatellGetStatus() SMSResponse {
-	log.Println("Getting status with ClickatellGetStatus")
-
 	rest := clickatell.Rest(Config.SMSProvider.Token, nil)
 	st, err := rest.GetStatus(m.ProviderID)
 	if err != nil {

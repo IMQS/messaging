@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
@@ -128,22 +125,8 @@ func handleNormalize(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	reader := csv.NewReader(strings.NewReader(msisdns))
 	records, _ := reader.ReadAll()
 
-	// test start
-	seed := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(seed)
-	ms := []string{}
-	for x := 0; x < 600000; x++ {
-		ms = append(ms, strconv.Itoa(random.Intn(100000000)))
-	}
-	t1 := time.Now()
-	cleanMSISDNs(ms, Config.SMSProvider.Countries)
-	t2 := time.Now()
-	fmt.Println("time: ", t2.Sub(t1))
-	js, err := json.Marshal(records)
-	// test end
-
-	// cleanMSISDNs := cleanMSISDNs(records[0], Config.SMSProvider.Countries)
-	// js, err := json.Marshal(cleanMSISDNs)
+	cleanMSISDNs := cleanMSISDNs(records[0], Config.SMSProvider.Countries)
+	js, err := json.Marshal(cleanMSISDNs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

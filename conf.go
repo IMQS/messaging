@@ -27,6 +27,7 @@ type smsProvider struct {
 	Token              string
 	MaxMessageSegments int
 	MaxBatchSize       int
+	Countries          []string
 	Custom1            string
 	Custom2            string
 	Custom3            string

@@ -12,11 +12,11 @@ The messaging service supports the following:
 - web server to listen for HTTP `GET` or `POST` requests on a configurable port
 - authentication of user roles via the `serviceauth` package
 - processing of lists of mobile numbers (MSISDNs), cleaning and/or discarding invalid numbers and duplicates.
-- configurable SMS provider integration 
+- configurable SMS provider integration - a MockProvider is included for testing
 - splitting of large send requests into smaller batches, as required by some SMS providers
 - send message and clean mobile numbers to SMS provider through API
 - logging of all messages and send logs in SQL tables
-- configurable optional polling to retrieve the delivery status for messages 
+- configurable optional polling to retrieve the delivery status for messages
  
 ## API calls
 
@@ -77,12 +77,19 @@ Retrieves the delivery status of the last delivered message for a specific mobil
 * **Success Response:**
 
   * **Code:** 200 <br />
-    **Content:** `004`
+    **Content:** `delivered` | `failed` | `sent`
  
 * **Error Response:**
 
   * **Code:** 200 <br />
     **Content:** `Error: no data available`
+
+* **Status Description:**
+
+	* **delivered:** Message has successfully been delivered to the mobile phone <br />
+	  **failed:** Message could not be delivered to the mobile phone <br />
+	  **sent:** Message has been sent but has not the handset yet.  It could still fail or be delivered.
+
 
 ### **Normalize**
 Processes a list of mobile numbers, cleaning, formatting and removing duplicates.
@@ -128,7 +135,9 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 		"name": "MockProvider",		// Name of provider.  Will be used to determine function to call
 		"enabled": true,			    // Enable or disable sending of SMS for testing
 		"token": "12345",			// Auth token to use for sending
+		"maxMessageSegments": 1,	// Max message segments to send. Each segment is 160 characters
 		"maxBatchSize": 500,  		// Max number of messages to send per batch 
+		"countries": ["ZA", "BW"]	// Allow sending to countries listed. Incompatible numbers will be discarded 
 		"custom1": "custom data",	// Custom field for SMS provider API implementation
 		"custom2": "custom data",	// Custom field for SMS provider API implementation
 		"custom3": "custom data"	// Custom field for SMS provider API implementation

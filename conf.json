@@ -5,8 +5,8 @@
 		"enabled": true,
 		"token": "12345",
 		"maxMessageSegments": 1,
-		"maxBatchSize": 5000,
-		"countries": ["USA","ZW","IT","RO","CH","AT","GB","DK","SE","NO","PL","DE","PE","MX","CU","AR","ZA", "ZW"]
+		"maxBatchSize": 600,
+		"countries": ["ZA", "BW"]
 	},
 	"authentication": {
 		"service": "serviceauth",
@@ -21,8 +21,8 @@
 		"Host": "localhost",
 		"Port": 5432,
 		"Database": "messaging",
-		"User": "postgres",
-		"Password": "1mq5p@55w0rd",
+		"User": "",
+		"Password": "",
 		"SSL": false
 	}
 }

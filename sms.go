@@ -78,7 +78,6 @@ func getStatus(apiID, sendLogID string) (string, error) {
 // UpdateStatus is executed on an interval, finding all unresolved delivery
 // statusses from the last interval and retrieving it from the service provider
 func UpdateStatus(i int) {
-	log.Printf("UpdateStatus running on interval: %v", i)
 	aIDs, err := DB.getUnresolvedIDs(i)
 
 	if err != nil {
@@ -108,9 +107,8 @@ func sendSMSBatch(msg, eml string, ns []string) (string, error) {
 	m := message{
 		Destination: ns,
 		Text:        msg,
-		//ClientMsgId: "0",
-		From:     "IMQS",
-		Provider: Config.SMSProvider,
+		From:        "IMQS",
+		Provider:    Config.SMSProvider,
 	}
 	resp := callMethod(m, Config.SMSProvider.Name+"SendSMS").(SMSResponse)
 
