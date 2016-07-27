@@ -26,7 +26,7 @@ const smsCharLength = 160
 // StartServer is called to read the config file and initiate
 // the HTTP server.
 func StartServer() error {
-	address := fmt.Sprintf("%v:%v", "localhost", Config.HTTPPort)
+	address := fmt.Sprintf(":%v", Config.HTTPPort)
 	router := httprouter.New()
 	router.GET("/messageStatus/:msisdn", handleMessageStatus)
 	router.POST("/sendSMS", handleSendSMS)
@@ -41,7 +41,9 @@ func StartServer() error {
 	return nil
 }
 
-// HandleSendSMS should called with form-data specifying a message, and a comma-separated list of msisdns
+// HandleSendSMS should called with form-data specifying a message, and a comma-separated list of msisdns.
+// It can be expanded to accept a JSON object containing fields such as name, surname, age, etc.  These
+// can then be replaced in the message before sending to allow for personalized messages.
 func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	userAuth, identity := userHasPermission(r)
 	if userAuth != true {
@@ -51,6 +53,11 @@ func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
 	msg := r.FormValue("message")
 	ns := r.FormValue("msisdns")
+
+	if len(msg) == 0 || len(ns) == 0 {
+		http.Error(w, "Invalid message or msisdn data", http.StatusNotAcceptable)
+		return
+	}
 
 	reader := csv.NewReader(strings.NewReader(ns))
 	response, err := reader.ReadAll()
