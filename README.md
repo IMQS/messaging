@@ -88,7 +88,7 @@ Retrieves the delivery status of the last delivered message for a specific mobil
 
 	* **delivered:** Message has successfully been delivered to the mobile phone <br />
 	* **failed:** Message could not be delivered to the mobile phone <br />
-	* **sent:** Message has been sent but has not the handset yet.  It could still fail or be delivered.
+	* **sent:** Message has been sent but has not reached the handset yet.  It could still fail or be delivered.
 
 
 ### **Normalize**
