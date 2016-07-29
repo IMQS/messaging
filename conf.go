@@ -2,8 +2,10 @@ package messaging
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"os"
+
+	"github.com/IMQS/log"
 )
 
 /*
@@ -41,39 +43,37 @@ Sample config:
 
 */
 
-// Variables used throughout the messaging package
-var (
-	Config = configuration{}
-	DB     sqlNotifyDB
-	DBCon  dbConnection
-)
-
-type configuration struct {
-	HTTPPort       int
-	SMSProvider    smsProvider
-	Authentication authConfig
-	DeliveryStatus deliveryInterval
-	DBConnection   dbConnection
+type MessagingServer struct {
+	Config   Configuration
+	Log      *log.Logger
+	DB       sqlNotifyDB
+	Interval IntervalService
 }
 
-type smsProvider struct {
+type Configuration struct {
+	HTTPPort       int
+	Logfile        string
+	SMSProvider    ConfigSmsProvider
+	Authentication ConfigAuth
+	DeliveryStatus ConfigDeliveryInterval
+	DBConnection   ConfigDBConnection
+}
+
+type ConfigSmsProvider struct {
 	Name               string
 	Enabled            bool
 	Token              string
 	MaxMessageSegments int
 	MaxBatchSize       int
 	Countries          []string
-	Custom1            string
-	Custom2            string
-	Custom3            string
 }
 
-type authConfig struct {
+type ConfigAuth struct {
 	Service string
 	Enabled bool
 }
 
-type dbConnection struct {
+type ConfigDBConnection struct {
 	Driver   string
 	Host     string
 	Port     uint16
@@ -83,43 +83,54 @@ type dbConnection struct {
 	SSL      bool
 }
 
-type deliveryInterval struct {
+// ConfigDeliveryInterval controls the behaviour of the delivery status checker.
+type ConfigDeliveryInterval struct {
 	Enabled        bool
-	UpdateInverval int
+	UpdateInterval string
 }
 
-// NewConfig reads the config file, opens the DB
-// and starts the interval ticker.
-func NewConfig(filename string) error {
+// Initialize opens a log file, opens the DB and starts the interval ticker.
+func (s *MessagingServer) Initialize() error {
+	var err error
+
+	s.Log = log.New(s.Config.Logfile)
+	s.Log.Level = 0
+	s.DB.db, err = s.Config.DBConnection.open()
+	if err != nil {
+		s.Log.Errorf("Error connecting to Messaging DB: %v", err)
+		return err
+	}
+
+	if err = s.DB.db.Ping(); err != nil {
+		s.Log.Infof("Database does not exist, creating")
+		if err = s.Config.DBConnection.createDB(); err != nil {
+			s.Log.Errorf("DB Create: %v", err)
+			return err
+		}
+	}
+
+	if err = s.runMigrations(); err != nil {
+		return err
+	}
+	s.startInterval()
+	return nil
+}
+
+// NewConfig reads the config file
+func (c *Configuration) NewConfig(filename string) error {
+
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 		return err
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(file)
 
-	if err = decoder.Decode(&Config); err != nil {
-		log.Println("Error parsing config file:", err)
-		return err
-	}
-	DBCon := Config.DBConnection
-
-	if DB.db, err = DBCon.open(); err != nil {
-		log.Printf("Error connecting to Messaging DB: %v", err)
+	if err = decoder.Decode(&c); err != nil {
+		fmt.Println("Error parsing config file:", err)
 		return err
 	}
 
-	if err := DB.db.Ping(); err != nil {
-		if err = DBCon.createDB(); err != nil {
-			log.Printf("DB Create: %v", err)
-			return err
-		}
-	}
-
-	if err := runMigrations(&DBCon); err != nil {
-		return err
-	}
-	startInterval()
 	return nil
 }

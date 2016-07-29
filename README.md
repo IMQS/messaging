@@ -130,7 +130,7 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 
 ```
 {
-	"HTTPPort": 2016,  			    // Port to bind to for the HTTP server
+	"HTTPPort": 2012,  			    // Port to bind to for the HTTP server
 	"smsProvider": {
 		"name": "MockProvider",		// Name of provider.  Will be used to determine function to call
 		"enabled": true,			// Enable or disable sending of SMS for testing
@@ -138,9 +138,6 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 		"maxMessageSegments": 1,	// Max message segments to send. Each segment is 160 characters
 		"maxBatchSize": 500,  		// Max number of messages to send per batch 
 		"countries": ["ZA", "BW"]	// Allow sending to countries listed. Incompatible numbers will be discarded 
-		"custom1": "custom data",	// Custom field for SMS provider API implementation
-		"custom2": "custom data",	// Custom field for SMS provider API implementation
-		"custom3": "custom data"	// Custom field for SMS provider API implementation
 	},
 	"authentication": {
 		"service": "serviceauth",	// Authentication system to use. Implement new service in auth.go 
@@ -148,7 +145,7 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 	},
 	"deliveryStatus": {
 		"enabled": true,			// Enable or disable delivery status retrieval
-		"updateInverval": 15		// Amount of minutes between retrieval of delivery status  
+		"updateInverval": "5m"		// Time interval between retrieval of delivery status  
 	},
 	"dbConnection": {
 		"Driver": "postgres",		// Only Postgres implemented at this stage

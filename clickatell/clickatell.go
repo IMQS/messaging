@@ -1,6 +1,10 @@
 package clickatell
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"net/http"
+)
 
 const (
 	apiEndpoint = "https://api.clickatell.com/"
@@ -60,14 +64,24 @@ func (e *ErrorResponse) HasError() bool {
 	return e.Description != ""
 }
 
-func (e *ErrorResponse) GetError() *ClickatellErr {
+func (e *ErrorResponse) GetError(r *http.Response) error {
 	if e.HasError() {
-		return &ClickatellErr{errors.New(e.Description), e.Code}
-	} else {
-		return nil
+		return fmt.Errorf("clickatell: %v", e.Description)
 	}
+	return getSuccessStatus(r)
 }
 
 func MakeError(err ErrorResponse) *ClickatellErr {
 	return &ClickatellErr{errors.New(err.Description), err.Code}
+}
+
+func getSuccessStatus(r *http.Response) error {
+	switch r.StatusCode {
+	case 200:
+		return nil
+	case 202:
+		return nil
+	default:
+		return fmt.Errorf("clickatell: %v", r.Status)
+	}
 }
