@@ -5,6 +5,11 @@ import (
 	"log"
 )
 
+// CR: This is quite confusing, because it looks like a 'message' can represent a message
+// both in the unsent and the sent phase. Perhaps it would be better if there was just
+// a 'message' which was raw immutable input data, and then the 'response' data structure
+// would hold all of the results from the actual message sender.
+// It's much clearer if you can write "response = send(message)",
 type message struct {
 	ID          string      // The internal ID from the database
 	ProviderID  string      // The ID assigned by the SMS provider in the send response
@@ -16,6 +21,8 @@ type message struct {
 
 // SMSResponse struct represents the response of a "send"
 // API call.
+// CR: I'm not sure that there should be an "Error" value here. Any such error should probably
+// just be a function return value.
 type SMSResponse struct {
 	Error error
 	Data  []SendSMSResponseMessage
@@ -52,6 +59,7 @@ func GetNumberStatus(n string) (string, error) {
 		return "", err
 	}
 
+	// CR: Random string literals should be constants
 	if st != "0" && st != "sent" {
 		return st, nil
 	}
@@ -77,6 +85,13 @@ func getStatus(apiID, sendLogID string) (string, error) {
 
 // UpdateStatus is executed on an interval, finding all unresolved delivery
 // statusses from the last interval and retrieving it from the service provider
+// CR: Is this comment accurate? Surely what we should be doing is checking on
+// the status of all messages with unknown status, which were went within the
+// last X seconds, where X is some reasonable constant, like 30 minutes.
+// We should not be building that logic on an "interval". Just use straight
+// time difference.
+// "i" is a really bad name for a function parameter, but this parameter shouldn't
+// even exist.
 func UpdateStatus(i int) {
 	aIDs, err := DB.getUnresolvedIDs(i)
 
@@ -89,6 +104,16 @@ func UpdateStatus(i int) {
 
 }
 
+// CR: I'm not convinced that we should use a recursive function here, because
+// it's harder for most people to understand. If we were all coding in pure functional
+// languages, then it probably wouldn't be an issue, but generally that's not the
+// case here, so it's extra mental effort to understand the behaviour of this function.
+// One particular thing of note here, is that we are throwing away error messages
+// from recursive invocations.
+// If that is intentional, then I'd say that's just plain wrong - we should never throw
+// away errors.
+// However, I wouldn't be surprised if this was an unintentional bug, which adds
+// credibility to my claim that recursive functions are harder to get right.
 func splitBatchAndSend(msg, eml string, ns []string) (string, error) {
 	var err error
 	var sendID string

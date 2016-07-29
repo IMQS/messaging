@@ -12,6 +12,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// CR: Why make the variable names inside the Go code different to the JSON variable names?
+// I understand if you want to keep the JSON values camelCase, but at least make the
+// variable names identical, aside from case.
 type sendSMSResponse struct {
 	Reference         string `json:"refNumber"`
 	ValidCount        int    `json:"validNumbers"`
@@ -52,6 +55,7 @@ func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	}
 
 	msg := r.FormValue("message")
+	// CR: I think 'numbers' is probably a better variable name, and likewise 'cleanedNumbers'
 	ns := r.FormValue("msisdns")
 
 	if len(msg) == 0 || len(ns) == 0 {
@@ -59,6 +63,7 @@ func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
+	// CR: Probably simpler to just use strings.Split(ns, ",") here
 	reader := csv.NewReader(strings.NewReader(ns))
 	response, err := reader.ReadAll()
 	if err != nil {
@@ -67,6 +72,11 @@ func handleSendSMS(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	}
 
 	// Check if message fits into one message (segements * sms length)
+	// CR: I'm pretty sure SMS limits are imposed on encoded length, not number of runes. Not sure
+	// about exact encodings etc... thought it was some variant of UTF16 when necessary, but I don't know for sure.
+	// But pretty sure counting runes is wrong.
+	// Although.. we are imposing this limit here. It guess it's fine whatever it is, but we should at least
+	// make it clear that this limit is arbitrary, and imposed by us.
 	if utf8.RuneCountInString(msg) > Config.SMSProvider.MaxMessageSegments*smsCharLength {
 		lErr := fmt.Sprintf("Message exceeds max allowed length (%v characters)", Config.SMSProvider.MaxMessageSegments*smsCharLength)
 		http.Error(w, lErr, http.StatusNotAcceptable)
@@ -116,6 +126,7 @@ func handleMessageStatus(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// CR: Should probably set Content-Type: text/plain
 	fmt.Fprintf(w, "%v", st)
 }
 

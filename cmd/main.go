@@ -27,6 +27,7 @@ func exec(cmdName string, args []string, options cli.OptionSet) int {
 	err := messaging.NewConfig(configFile)
 	if err != nil {
 		fmt.Printf("Error constructing messaging config: %v", err)
+		// CR: Should return 1
 	}
 
 	run := func() {
@@ -44,6 +45,7 @@ func exec(cmdName string, args []string, options cli.OptionSet) int {
 		}
 	default:
 		fmt.Printf("Unknown command %v\n", cmdName)
+		// CR: Should return 1
 	}
 
 	return 0

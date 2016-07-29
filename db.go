@@ -18,6 +18,7 @@ type sqlNotifyDB struct {
 
 // CreateSMSData handles the DB entries for batch as well as individual
 // messages after sending.
+// CR: Function parameter names are opaque here. What is "eml"?
 func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) (string, error) {
 	msgs := resp.Data
 	var st, stDesc string
@@ -30,6 +31,8 @@ func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) (string,
 	}
 	var id int
 	// Create entry in the batchlog table and retrieve the new row ID.
+	// CR: I think you need to use time.Now().UTC() here, and everywhere else where you insert
+	// a time value into the DB.
 	err := x.db.QueryRow(`INSERT INTO sendlog 
 		(senttime, originator, type, quantity, delivered, failed, sent, message, status, description) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
@@ -51,12 +54,14 @@ func (x *sqlNotifyDB) createSMSData(msg, eml string, resp *SMSResponse) (string,
 }
 
 // UpdateSMSData updates the SMS transaction with the retrieved status and timestamp.
+// CR: Function parameters need better names. No idea what any of these names mean.
 func (x *sqlNotifyDB) updateSMSData(mID, stC, stD, sLogID string) error {
 	_, err := x.db.Exec(`UPDATE sms SET status = $1, statustimestamp = $2 WHERE providerid = $3;`,
 		stC, time.Now(), mID)
 	if err != nil {
 		return err
 	}
+	// CR: These kind of strings should be constants
 	if stC == "delivered" { // Success
 		_, err := x.db.Exec(`UPDATE sendlog SET delivered = delivered + 1 WHERE id = $1`, sLogID)
 		return err
@@ -71,6 +76,7 @@ func (x *sqlNotifyDB) updateSMSData(mID, stC, stD, sLogID string) error {
 
 // GetLastSMSID finds the most recent message that was sent to a specific
 // mobile number and returns the messageID.
+// CR: The 3 return value here need names.
 func (x *sqlNotifyDB) getLastSMSID(m string) (string, string, string, error) {
 	var mID, sendLogID, status string
 	err := x.db.QueryRow(`SELECT providerid, sendlogid, status FROM sms WHERE msisdn = $1 ORDER BY senttime DESC LIMIT 1`, m).Scan(&mID, &sendLogID, &status)
@@ -83,6 +89,8 @@ func (x *sqlNotifyDB) getLastSMSID(m string) (string, string, string, error) {
 // GetUnresolvedIDs finds the vendorIDs for all of the sms messages that does
 // not have a valid status and that have been sent within the last period
 // as specified in the i variable (in minutes).
+// CR: The return value needs a name, or must be documented. It's not at all obvious what this
+// array of array of strings is.
 func (x *sqlNotifyDB) getUnresolvedIDs(i int) ([][]string, error) {
 	var aIDs [][]string
 	rows, err := x.db.Query(`SELECT providerid, sendlogid FROM sms WHERE statustimestamp IS NULL AND senttime >= $1`,
@@ -149,6 +157,10 @@ func runMigrations(x *dbConnection) error {
 func createMigrations() []migration.Migrator {
 	var migrations []migration.Migrator
 
+	// CR: It's hard to understand the schema here. Either it should be obvious from the tables and field names,
+	// or it should have some comments. Specifically, is there one 'sms' record for every attempted send?
+	// It's confusing, because there is a 'quanity' field there, as well as an 'msisdn' field. So is it single
+	// or plural?
 	text := []string{
 		`CREATE TABLE sendlog (
 			id SERIAL PRIMARY KEY,
