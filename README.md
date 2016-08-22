@@ -21,11 +21,11 @@ The messaging service supports the following:
 ## API calls
 
 ### **sendSMS**
-Sends a message to the mobile numbers included in the form-data of the POST request.
+Sends a message to the mobile numbers included in the JSON POST request.
 
 * **URL**
 
-  /sendSMS
+  /sendsms
 
 * **Method:**
 
@@ -33,10 +33,14 @@ Sends a message to the mobile numbers included in the form-data of the POST requ
   
 * **Data Params**
 
-   `message=[string]` -> text message to send
-
-   `msisdns=[string, csv]` -> list of mobile numbers in CSV format
-
+```json
+{ "message": "text message to send",
+  "msisdns": [
+  		"0830000000",
+  		"27840000000"
+  	     ]
+}
+```
 * **Success Response:**
 
   * **Code:** 200 <br />
@@ -68,7 +72,7 @@ Retrieves the delivery status of the last delivered message for a specific mobil
 
 * **URL**
 
-  /messageStatus/:mobileNumber
+  /messagestatus/:mobileNumber
 
 * **Method:**
 
@@ -106,7 +110,15 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 
    **Required:**
 
-   `msisdns=[string, csv]` -> list of mobile numbers in CSV format
+```json
+{ "msisdns": [
+  		"0830000000",
+  		"27840000000",
+  		"numbersToClean",
+  		"0820000000"
+  	     ]
+}
+```
 
 * **Success Response:**
 
@@ -131,6 +143,7 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 ```
 {
 	"HTTPPort": 2016,  			    // Port to bind to for the HTTP server
+	"Logfile": "c:\\imqsvar\\logs\\services\\messaging\\messaging.log",
 	"smsProvider": {
 		"name": "MockProvider",		// Name of provider.  Will be used to determine function to call
 		"enabled": true,			// Enable or disable sending of SMS for testing
@@ -138,17 +151,14 @@ Processes a list of mobile numbers, cleaning, formatting and removing duplicates
 		"maxMessageSegments": 1,	// Max message segments to send. Each segment is 160 characters
 		"maxBatchSize": 500,  		// Max number of messages to send per batch 
 		"countries": ["ZA", "BW"]	// Allow sending to countries listed. Incompatible numbers will be discarded 
-		"custom1": "custom data",	// Custom field for SMS provider API implementation
-		"custom2": "custom data",	// Custom field for SMS provider API implementation
-		"custom3": "custom data"	// Custom field for SMS provider API implementation
 	},
 	"authentication": {
 		"service": "serviceauth",	// Authentication system to use. Implement new service in auth.go 
-		"enabled": false			// Enable or disable user authentication
+		"enabled": true			// Enable or disable user authentication
 	},
 	"deliveryStatus": {
 		"enabled": true,			// Enable or disable delivery status retrieval
-		"updateInverval": 15		// Amount of minutes between retrieval of delivery status  
+		"updateInverval": "15m"		// Amount of minutes between retrieval of delivery status  
 	},
 	"dbConnection": {
 		"Driver": "postgres",		// Only Postgres implemented at this stage
