@@ -36,10 +36,11 @@ func (c *RestClient) Send(in Message) (*SendResponse, error) {
 	req, _ := http.NewRequest("POST", Concat(apiEndpoint, "rest/message"), bytes.NewBuffer(jsonBody))
 	resp, err := c.client.Do(c.applyHeaders(req))
 	result := &SendResponse{}
+
 	if err == nil {
 		err = json.NewDecoder(resp.Body).Decode(result)
 		if err == nil {
-			err = result.Error.GetError()
+			err = result.Error.GetError(resp)
 		}
 	}
 	return result, err
@@ -62,7 +63,7 @@ func (c *RestClient) GetBalance() (*GetBalanceResponse, error) {
 	if err == nil {
 		err = json.NewDecoder(resp.Body).Decode(result)
 		if err == nil {
-			err = result.Error.GetError()
+			err = result.Error.GetError(resp)
 		}
 	}
 	return result, err

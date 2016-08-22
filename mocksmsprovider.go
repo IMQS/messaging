@@ -1,76 +1,68 @@
 package messaging
 
 import (
-	"log"
 	"math/rand"
 	"strconv"
 	"time"
 )
 
-// MockProviderSendSMS simulates a SMS provider for testing purposes
+type MockProviderSender struct {
+}
+
+// SendSMS simulates a SMS provider for testing purposes
 // The messages always succeed with this provider.
-func (m message) MockProviderSendSMS() SMSResponse {
-	log.Println("Simulating sending message with MockProviderSendSMS")
+func (p MockProviderSender) SendSMS(s *MessagingServer, m message) ([]SendSMSResponseMessage, error) {
+	s.Log.Info("Simulating sending message with MockProviderSendSMS\n")
 	var msRess []SendSMSResponseMessage
 	seed := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(seed)
-	for i := range m.Destination {
+	for _, dm := range m.Destination {
 		msRes := SendSMSResponseMessage{
-			To:        m.Destination[i],
+			To:        dm,
 			MessageID: strconv.Itoa(random.Intn(100000000)),
 			ErrorCode: "0",
 			ErrorDesc: "",
+			Segments:  1,
 		}
 		msRess = append(msRess, msRes)
 	}
-	sr := SMSResponse{
-		Error: nil,
-		Data:  msRess,
-	}
-
-	return sr
+	return msRess, nil
 }
 
-// MockProviderGetStatus simulates a SMS provider for testing purposes
-func (m message) MockProviderGetStatus() SMSResponse {
-	log.Println("Simulating getting status with MockProviderGetStatus")
+// GetStatus simulates a SMS provider for testing purposes
+func (p MockProviderSender) GetStatus(s *MessagingServer, m message) ([]SendSMSResponseMessage, error) {
+	s.Log.Info("Simulating getting status with MockProviderSender GetStatus\n")
 
 	// Randomly succeed, fail or delay messages
 	var errC string
+	time.Sleep(1)
 	seed := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(seed)
 	rReturn := random.Intn(10)
 	switch {
 	case rReturn < 1:
 		errC = "405" // Mock failed
-	case rReturn >= 2 && rReturn <= 8:
-		errC = "101" // Mock success
-	default:
+	case rReturn >= 8:
 		errC = "056" // Mock sent (in progress)
+	default:
+		errC = "101" // Mock success
 	}
 	var msRess []SendSMSResponseMessage
 	msRess = append(msRess, SendSMSResponseMessage{
 		MessageID: m.ProviderID,
-		ErrorCode: mockProviderMapCode(errC),
-		ErrorDesc: mockProviderMapCode(errC),
-		Quantity:  1,
+		ErrorCode: mapCode(errC),
+		ErrorDesc: mapCode(errC),
+		Segments:  1,
 	})
 
-	sr := SMSResponse{
-		Error: nil,
-		Data:  msRess,
-	}
-
-	return sr
+	return msRess, nil
 }
 
-func mockProviderMapCode(c string) string {
-	switch {
-	case c == "101":
-		return "delivered"
-	case c == "405":
-		return "failed"
-	default:
-		return "sent"
+func mapCode(c string) string {
+	m := map[string]string{
+		"101": Delivered,
+		"405": Failed,
+		"056": Sent,
 	}
+	return m[c]
 }

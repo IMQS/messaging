@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/IMQS/cli"
 	"github.com/IMQS/messaging"
@@ -24,15 +23,22 @@ func exec(cmdName string, args []string, options cli.OptionSet) int {
 		return 1
 	}
 
-	err := messaging.NewConfig(configFile)
+	server := messaging.MessagingServer{}
+	err := server.Config.NewConfig(configFile)
 	if err != nil {
-		fmt.Printf("Error constructing messaging config: %v", err)
+		fmt.Printf("Error loading messaging config: %v\n", err)
+		return 1
+	}
+
+	if err := server.Initialize(); err != nil {
+		fmt.Printf("Error initializing messaging server: %v\n", err)
+		return 1
 	}
 
 	run := func() {
-		err := messaging.StartServer()
+		err := server.StartServer()
 		if err != nil {
-			log.Fatal(err)
+			server.Log.Errorf("%v\n", err)
 			return
 		}
 	}

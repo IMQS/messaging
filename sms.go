@@ -1,24 +1,27 @@
 package messaging
 
-import (
-	"errors"
-	"log"
+import "errors"
+
+const (
+	Delivered = "delivered"
+	Failed    = "failed"
+	Sent      = "sent"
 )
 
-type message struct {
-	ID          string      // The internal ID from the database
-	ProviderID  string      // The ID assigned by the SMS provider in the send response
-	Destination []string    // List of string mobile numbers to send to
-	Text        string      // The text message to send
-	From        string      // Optional, provide a description for the sender
-	Provider    smsProvider // SMS Provider to send the messages through
+type SMSSender interface {
+	SendSMS(s *MessagingServer, m message) ([]SendSMSResponseMessage, error)
+	GetStatus(s *MessagingServer, m message) ([]SendSMSResponseMessage, error)
 }
 
-// SMSResponse struct represents the response of a "send"
-// API call.
-type SMSResponse struct {
-	Error error
-	Data  []SendSMSResponseMessage
+// The message struct is used to define a new SMS message that needs to be sent
+// to a list of mobile numbers (Destination).
+type message struct {
+	ID          string            // The internal ID from the database
+	ProviderID  string            // The ID assigned by the SMS provider in the send response
+	Destination []string          // List of string mobile numbers to send to
+	Text        string            // The text message to send
+	From        string            // Optional, provide a description for the sender
+	Provider    ConfigSmsProvider // SMS Provider to send the messages through
 }
 
 // SendSMSResponseMessage struct represents the response of a message contained
@@ -28,47 +31,57 @@ type SendSMSResponseMessage struct {
 	MessageID string
 	ErrorCode string
 	ErrorDesc string
-	Quantity  int
+	Segments  int
 }
 
-// SendSMS implements REST APIs for SMS providers, as configured in the config.
-// It also stores all messages in a DB for later reference
-func SendSMS(msg, eml string, ns []string) (string, error) {
-	log.Printf("User %v sending message '%v' to %v recipients.", eml, msg, len(ns))
+func (s *MessagingServer) getSender(n string) SMSSender {
+	m := map[string]SMSSender{
+		"Clickatell":   ClickatellSender{},
+		"MockProvider": MockProviderSender{},
+	}
+	return m[n]
+}
 
-	if !Config.SMSProvider.Enabled {
+// SendSMSMessages implements REST APIs for SMS providers, as configured in the config.
+// It also stores all messages in a DB for later reference
+func (s *MessagingServer) SendSMSMessages(msg, eml string, ns []string) (string, error) {
+	s.Log.Debugf("User %v sending message '%v' to %v recipients.", eml, msg, len(ns))
+
+	if !s.Config.SMSProvider.Enabled {
 		return "", errors.New("SendSMS disabled in config, not sending")
 	}
 
-	sendID, err := splitBatchAndSend(msg, eml, ns) // Split message into batches if required by provider
+	sendID, err := splitBatchAndSend(msg, eml, ns, s) // Split message into batches if required by provider
 
 	return sendID, err
 }
 
 // GetNumberStatus retrieves the delivery status of the last-sent message to a specific MSISDN
-func GetNumberStatus(n string) (string, error) {
-	mID, sendLogID, st, err := DB.getLastSMSID(n)
+func (s *MessagingServer) GetNumberStatus(n string) (string, error) {
+	mID, sendLogID, st, err := s.DB.getLastSMSID(n)
 	if err != nil {
 		return "", err
 	}
 
-	if st != "0" && st != "sent" {
+	if st != Sent {
 		return st, nil
 	}
 
-	stDesc, err := getStatus(mID, sendLogID)
+	stDesc, err := getStatus(mID, sendLogID, s)
 	return stDesc, err
 }
 
-func getStatus(apiID, sendLogID string) (string, error) {
-	resp := callMethod(message{ProviderID: apiID}, Config.SMSProvider.Name+"GetStatus").(SMSResponse)
-	if resp.Error != nil {
-		return "", resp.Error
-	}
-	stCode := resp.Data[0].ErrorCode
-	stDesc := resp.Data[0].ErrorDesc
+func getStatus(apiID, sendLogID string, s *MessagingServer) (string, error) {
+	m := message{ProviderID: apiID}
+	smsSender := s.getSender(s.Config.SMSProvider.Name)
+	resp, err := smsSender.GetStatus(s, m)
 
-	if err := DB.updateSMSData(apiID, stCode, stDesc, sendLogID); err != nil {
+	if err != nil {
+		return "", err
+	}
+	stCode := resp[0].ErrorCode
+
+	if err := s.DB.updateSMSData(apiID, stCode, resp[0].ErrorDesc, sendLogID, resp[0].Segments); err != nil {
 		return "", errors.New("SendSMS DB error")
 	}
 
@@ -76,46 +89,68 @@ func getStatus(apiID, sendLogID string) (string, error) {
 }
 
 // UpdateStatus is executed on an interval, finding all unresolved delivery
-// statusses from the last interval and retrieving it from the service provider
-func UpdateStatus(i int) {
-	aIDs, err := DB.getUnresolvedIDs(i)
+// statusses from the 30 minutes and retrieving it from the service provider
+func UpdateStatus(s *MessagingServer) {
+	aIDs, err := s.DB.getUnresolvedIDs("30m")
 
 	if err != nil {
-		log.Printf("UpdateStatus failed: %v", err)
+		s.Log.Errorf("UpdateStatus failed: %v", err)
 	}
 	for x := 0; x < len(aIDs); x++ {
-		getStatus(aIDs[x][0], aIDs[x][1])
+		getStatus(aIDs[x][0], aIDs[x][1], s)
 	}
 
 }
 
-func splitBatchAndSend(msg, eml string, ns []string) (string, error) {
+func splitBatchAndSend(msg, eml string, ns []string, s *MessagingServer) (string, error) {
 	var err error
 	var sendID string
-	bs := Config.SMSProvider.MaxBatchSize
-	if bs > 0 && len(ns) > bs {
-		sendID, err = sendSMSBatch(msg, eml, ns[:bs])
-		splitBatchAndSend(msg, eml, ns[bs:])
-	} else {
-		sendID, err = sendSMSBatch(msg, eml, ns)
+
+	bs := s.Config.SMSProvider.MaxBatchSize
+	ratio := float32(len(ns)) / float32(bs)
+
+	// BUG(dbf): We are losing the full result set and only returning the final sendID and err
+	for ratio > 0 {
+		if ratio > 1 {
+			sendID, err = sendSMSBatch(msg, eml, ns[:bs], s)
+			ns = ns[bs:]
+			ratio = float32(len(ns)) / float32(bs)
+		} else {
+			sendID, err = sendSMSBatch(msg, eml, ns, s)
+			return sendID, err
+		}
 	}
+
 	return sendID, err
 }
 
-func sendSMSBatch(msg, eml string, ns []string) (string, error) {
-
+func sendSMSBatch(msg, eml string, ns []string, s *MessagingServer) (string, error) {
 	m := message{
 		Destination: ns,
 		Text:        msg,
 		From:        "IMQS",
-		Provider:    Config.SMSProvider,
+		Provider:    s.Config.SMSProvider,
 	}
-	resp := callMethod(m, Config.SMSProvider.Name+"SendSMS").(SMSResponse)
+	smsSender := s.getSender(s.Config.SMSProvider.Name)
+	resp, sendErr := smsSender.SendSMS(s, m)
 
-	sendID, err := DB.createSMSData(msg, eml, &resp)
+	sendID, err := s.DB.createSMSData(msg, eml, resp, sendErr)
 	if err != nil {
 		return "", errors.New("SendSMS DB error")
 	}
 
-	return sendID, resp.Error
+	return sendID, sendErr
+}
+
+func allowOnlyASCII(str string) string {
+	b := make([]byte, len(str))
+	var bl int
+	for i := 0; i < len(str); i++ {
+		c := str[i]
+		if c >= 32 && c < 127 {
+			b[bl] = c
+			bl++
+		}
+	}
+	return string(b[:bl])
 }
