@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -30,6 +31,7 @@ func (s *MessagingServer) StartServer() error {
 	address := fmt.Sprintf(":%v", s.Config.HTTPPort)
 	router := httprouter.New()
 	router.GET("/messagestatus/:msisdn", s.handleMessageStatus)
+	router.GET("/ping", s.handlePing)
 	router.POST("/sendsms", s.handleSendSMS)
 	router.POST("/normalize", s.handleNormalize)
 
@@ -150,4 +152,9 @@ func (s *MessagingServer) handleNormalize(w http.ResponseWriter, r *http.Request
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
+}
+
+func (s *MessagingServer) handlePing(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, "{\"Timestamp\": %v}", time.Now().Unix())
 }
