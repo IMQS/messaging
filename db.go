@@ -130,10 +130,13 @@ func (x *ConfigDBConnection) open() (*sql.DB, error) {
 // CreateDB takes care of creating a new DB for the Notify component
 // if the DB does not yet exist.
 func (x *ConfigDBConnection) createDB() error {
-	db, err := sql.Open(x.Driver, x.connectionString(false))
+	messagingDB := x.Database
+	x.Database = "postgres" // Connect to the postgres DB when creating a new database
+	db, err := sql.Open(x.Driver, x.connectionString(true))
 	if err != nil {
 		return err
 	}
+	x.Database = messagingDB
 	defer db.Close()
 	_, err = db.Exec("CREATE DATABASE " + x.Database)
 	if err != nil {
