@@ -18,10 +18,6 @@ func main() {
 
 func exec(cmdName string, args []string, options cli.OptionSet) int {
 	configFile := options["c"]
-	if configFile == "" {
-		fmt.Printf("You must specify a config file\n")
-		return 1
-	}
 
 	server := messaging.MessagingServer{}
 	err := server.Config.NewConfig(configFile)

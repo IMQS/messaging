@@ -1,11 +1,8 @@
 package messaging
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-
 	"github.com/IMQS/log"
+	"github.com/IMQS/serviceconfigsgo"
 )
 
 /*
@@ -42,6 +39,10 @@ Sample config:
 }
 
 */
+
+const serviceConfigFileName = "messaging.json"
+const serviceConfigVersion = 1
+const serviceName = "ImqsMessaging"
 
 type MessagingServer struct {
 	Config   Configuration
@@ -119,16 +120,8 @@ func (s *MessagingServer) Initialize() error {
 // NewConfig reads the config file
 func (c *Configuration) NewConfig(filename string) error {
 
-	file, err := os.Open(filename)
+	err := serviceconfig.GetConfig(filename, serviceName, serviceConfigVersion, serviceConfigFileName, c)
 	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	defer file.Close()
-	decoder := json.NewDecoder(file)
-
-	if err = decoder.Decode(&c); err != nil {
-		fmt.Println("Error parsing config file:", err)
 		return err
 	}
 
