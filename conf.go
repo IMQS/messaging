@@ -54,6 +54,10 @@ type MessagingServer struct {
 type Configuration struct {
 	HTTPPort       int
 	Logfile        string
+	EmailUsername  string
+	EmailPassword  string
+	EmailUrl       string
+	HelpDesk       string
 	SMSProvider    ConfigSmsProvider
 	Authentication ConfigAuth
 	DeliveryStatus ConfigDeliveryInterval
