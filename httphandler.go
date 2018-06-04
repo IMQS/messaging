@@ -1,9 +1,13 @@
 package messaging
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -25,6 +29,23 @@ type SMSRequest struct {
 
 const smsCharLength = 160
 
+const helpDeskTemplate = `
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>
+<body>
+<pre style="font-family: arial; font-size: 15px">					
+Name: %v
+Email: %v
+Phone number:%v
+Call me back: %v
+Browser: %v
+Browser version: %v
+Server: %v
+
+Message:					
+%v
+</pre>
+</body></html>`
+
 // StartServer is called to read the config file and initiate
 // the HTTP server.
 func (s *MessagingServer) StartServer() error {
@@ -34,6 +55,7 @@ func (s *MessagingServer) StartServer() error {
 	router.GET("/ping", s.handlePing)
 	router.POST("/sendsms", s.handleSendSMS)
 	router.POST("/normalize", s.handleNormalize)
+	router.POST("/logissue", s.handleLogIssue)
 
 	s.Log.Infof("Messaging is listening on %v", address)
 	err := http.ListenAndServe(address, router)
@@ -42,6 +64,88 @@ func (s *MessagingServer) StartServer() error {
 		return err
 	}
 	return nil
+}
+
+func (s *MessagingServer) handleLogIssue(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	// Read in none-file form fields
+	description := strings.TrimSpace(r.FormValue("description"))
+	clientName := strings.TrimSpace(r.FormValue("name"))
+	clientEmail := strings.TrimSpace(r.FormValue("email"))
+	clientPhoneNumber := strings.TrimSpace(r.FormValue("phone"))
+	callback := strings.TrimSpace(r.FormValue("callback"))
+	browserName := strings.TrimSpace(r.FormValue("browser"))
+	browserVersion := strings.TrimSpace(r.FormValue("browserVersion"))
+	serverAddress := strings.TrimSpace(r.FormValue("serverAddress"))
+
+	messageBuffer := new(bytes.Buffer)
+	mpWriter := multipart.NewWriter(messageBuffer)
+
+	for _, files := range r.MultipartForm.File {
+		for _, file := range files {
+			var infile multipart.File
+
+			// Read file data into memory
+			infile, err := file.Open()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Create file field on form to be sent
+			part, err := mpWriter.CreateFormFile(file.Filename, file.Filename)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Copy file data to form
+			_, err = io.Copy(part, infile)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	mailBody := fmt.Sprintf(helpDeskTemplate, clientName, clientEmail, clientPhoneNumber, callback, browserName, browserVersion, serverAddress, description)
+	mailSubject := fmt.Sprintf("Issue detected at %v", serverAddress)
+
+	mpWriter.WriteField("emailTo", s.Config.HelpDesk)
+	mpWriter.WriteField("subject", mailSubject)
+	mpWriter.WriteField("ishtml", "True")
+	mpWriter.WriteField("replyTo", clientEmail)
+	mpWriter.WriteField("message", mailBody)
+
+	err := mpWriter.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	mailRequest, err := http.NewRequest("POST", s.Config.EmailUrl+"/sendEmail", messageBuffer)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	mailRequest.Header.Set("Content-Type", mpWriter.FormDataContentType())
+	mailRequest.SetBasicAuth(s.Config.EmailUsername, s.Config.EmailPassword)
+
+	mailResponse, err := http.DefaultClient.Do(mailRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer mailResponse.Body.Close()
+
+	if mailResponse.StatusCode != http.StatusOK {
+		http.Error(w, "Error sending mail", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, "Issue logged: %v", mailResponse.Status)
 }
 
 // HandleSendSMS should called with form-data specifying a message, and a comma-separated list of msisdns.
