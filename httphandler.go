@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -24,10 +23,6 @@ type SMSRequest struct {
 	Message string   `json:"message"`
 }
 
-type successJson struct {
-	key string `json:"key"`
-}
-
 const smsCharLength = 160
 
 // StartServer is called to read the config file and initiate
@@ -39,7 +34,6 @@ func (s *MessagingServer) StartServer() error {
 	router.GET("/ping", s.handlePing)
 	router.POST("/sendsms", s.handleSendSMS)
 	router.POST("/normalize", s.handleNormalize)
-	router.POST("/logissue", s.handleLogIssue)
 
 	s.Log.Infof("Messaging is listening on %v", address)
 	err := http.ListenAndServe(address, router)
@@ -48,68 +42,6 @@ func (s *MessagingServer) StartServer() error {
 		return err
 	}
 	return nil
-}
-
-func (s *MessagingServer) handleLogIssue(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	description := strings.TrimSpace(r.FormValue("description"))
-	clientName := strings.TrimSpace(r.FormValue("name"))
-	clientEmail := strings.TrimSpace(r.FormValue("email"))
-	clientPhoneNumber := strings.TrimSpace(r.FormValue("phone"))
-	callback := strings.TrimSpace(r.FormValue("callback"))
-	browserName := strings.TrimSpace(r.FormValue("browser"))
-	browserVersion := strings.TrimSpace(r.FormValue("browserVersion"))
-	serverAddress := strings.TrimSpace(r.FormValue("serverAddress"))
-
-	summary := fmt.Sprintf("Issue detected at %v", serverAddress)
-
-	messageTemplate := `
-	Name: %v
-	Email: %v
-	Phone number:%v
-	Call me back: %v
-	Browser: %v
-	Browser version: %v
-	Server: %v
-	
-	Message:					
-	%v
-	`
-	message := fmt.Sprintf(messageTemplate, clientName, clientEmail, clientPhoneNumber, callback, browserName, browserVersion, serverAddress, description)
-
-	issueKey, err := s.JiraApi.CreateIssue(summary, message)
-	if err != nil {
-		s.Log.Warnf("Unable to log issue with the Jira Api: %v", err.Error())
-		http.Error(w, fmt.Sprintf("Unable to log issue with the Jira Api: %v", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
-	ct := r.Header.Get("Content-Type")
-	contentTypeList := strings.Split(ct, ";")
-	contentType := contentTypeList[0]
-
-	if contentType == "multipart/form-data" && issueKey != "" {
-		statusCode, err := s.JiraApi.AddAttachments(issueKey, r)
-		if err != nil {
-			s.Log.Warnf("Unable to add attachments to Jira ticket with id: %v, error: %v", issueKey, err.Error())
-			http.Error(w, fmt.Sprintf("Unable to add attachments to Jira ticket with id: %v, error: %v", issueKey, err.Error()), statusCode)
-			return
-		}
-
-		if statusCode != http.StatusOK {
-			s.Log.Warnf("Error adding attachments to Jira ticket with id: %v, status code: %v", issueKey, statusCode)
-		}
-	}
-
-	result := successJson{key: issueKey}
-	resultJson, err := json.Marshal(&result)
-	if err != nil {
-		s.Log.Warnf("Unable to marshal results into json: %v", err.Error())
-		http.Error(w, fmt.Sprintf("Unable to marshal results into json: %v", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resultJson)
 }
 
 // HandleSendSMS should called with form-data specifying a message, and a comma-separated list of msisdns.

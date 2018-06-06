@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"github.com/IMQS/log"
-	"github.com/IMQS/messaging/atlassian"
 	"github.com/IMQS/serviceconfigsgo"
 )
 
@@ -50,7 +49,6 @@ type MessagingServer struct {
 	Log      *log.Logger
 	DB       sqlNotifyDB
 	Interval IntervalService
-	JiraApi  *atlassian.ImqsJiraApi
 }
 
 type Configuration struct {
@@ -60,7 +58,6 @@ type Configuration struct {
 	Authentication ConfigAuth
 	DeliveryStatus ConfigDeliveryInterval
 	DBConnection   ConfigDBConnection
-	JiraProvider   *atlassian.ConfigJiraProvider
 }
 
 type ConfigSmsProvider struct {
