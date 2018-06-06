@@ -5,6 +5,7 @@ import (
 
 	"github.com/IMQS/cli"
 	"github.com/IMQS/messaging"
+	"github.com/IMQS/messaging/atlassian"
 )
 
 func main() {
@@ -24,6 +25,10 @@ func exec(cmdName string, args []string, options cli.OptionSet) int {
 	if err != nil {
 		fmt.Printf("Error loading messaging config: %v\n", err)
 		return 1
+	}
+
+	if server.Config.JiraProvider != nil {
+		server.JiraApi = atlassian.NewImqsJiraApi(server.Config.JiraProvider)
 	}
 
 	if err := server.Initialize(); err != nil {
