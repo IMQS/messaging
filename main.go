@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/IMQS/cli"
-	"github.com/IMQS/messaging"
+	"github.com/IMQS/gowinsvc/service"
+	messaging "github.com/IMQS/messaging/core"
 )
 
 func main() {
@@ -41,7 +42,7 @@ func exec(cmdName string, args []string, options cli.OptionSet) int {
 
 	switch cmdName {
 	case "run":
-		if !messaging.RunAsService(run) {
+		if !service.RunAsService(run) {
 			run()
 		}
 	default:

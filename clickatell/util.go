@@ -2,14 +2,14 @@ package clickatell
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
 
 func GetContent(r *http.Response) string {
 	defer r.Body.Close()
-	s, _ := ioutil.ReadAll(r.Body)
+	s, _ := io.ReadAll(r.Body)
 	return strings.Trim(string(s), "\n")
 }
 

@@ -35,7 +35,7 @@ func (p MockProviderSender) GetStatus(s *MessagingServer, m message) ([]SendSMSR
 
 	// Randomly succeed, fail or delay messages
 	var errC string
-	time.Sleep(1)
+	time.Sleep(1 * time.Second)
 	seed := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(seed)
 	rReturn := random.Intn(10)

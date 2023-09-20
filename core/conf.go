@@ -2,7 +2,7 @@ package messaging
 
 import (
 	"github.com/IMQS/log"
-	"github.com/IMQS/serviceconfigsgo"
+	serviceconfig "github.com/IMQS/serviceconfigsgo"
 )
 
 /*
@@ -84,7 +84,7 @@ type ConfigDBConnection struct {
 	SSL      bool
 }
 
-// ConfigDeliveryInterval controls the behaviour of the delivery status checker.
+// ConfigDeliveryInterval controls the behavior of the delivery status checker.
 type ConfigDeliveryInterval struct {
 	Enabled        bool
 	UpdateInterval string
@@ -94,7 +94,7 @@ type ConfigDeliveryInterval struct {
 func (s *MessagingServer) Initialize() error {
 	var err error
 
-	s.Log = log.New(s.Config.Logfile)
+	s.Log = log.New(s.Config.Logfile, false)
 	s.Log.Level = 0
 	s.DB.db, err = s.Config.DBConnection.open()
 	if err != nil {

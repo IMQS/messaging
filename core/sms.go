@@ -89,7 +89,7 @@ func getStatus(apiID, sendLogID string, s *MessagingServer) (string, error) {
 }
 
 // UpdateStatus is executed on an interval, finding all unresolved delivery
-// statusses from the 30 minutes and retrieving it from the service provider
+// statuses from the 30 minutes and retrieving it from the service provider
 func UpdateStatus(s *MessagingServer) {
 	aIDs, err := s.DB.getUnresolvedIDs("30m")
 
